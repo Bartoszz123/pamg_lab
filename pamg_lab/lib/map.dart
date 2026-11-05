@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 
 import 'package:flutter_map/flutter_map.dart';
@@ -68,7 +70,7 @@ class _MapPageState extends State<MapPage> {
     bool firstPosition = true;
 
     positionStream = 
-      Geolocator.getPositionStream(locationSettings: locationSettings).listen(Position position) {
+      Geolocator.getPositionStream(locationSettings: locationSettings).listen((Position position) {
         if (!isMeasuring){
           return;
         }
@@ -87,6 +89,72 @@ class _MapPageState extends State<MapPage> {
           '${position.longitude}'
           '${position.timestamp}'
         );
-      };
+      });
   }
+
+  void stopMeasurement() {
+    positionStream?.cancel(); //positionStream?.cancel();
+    positionStream = null;
+    setState(() {
+      isMeasuring = false;
+      //routePoints.clear(); bo moze byc przycisk reset
+    });
+    print('Pomiar został zakończony');
+    print('Liczba zapisanych punktów: ${routePoints.length}');
+  }
+
+  void resetMeasurement() {
+    positionStream?.cancel();
+    positionStream = null;
+    setState(() {
+      isMeasuring = false;
+      routePoints.clear();
+    });
+    print('Pomiar i trasa zostały zresetowane');
+  }
+
+  Future<void> saveMeasurement() async{
+    if (routePoints.length < 2){
+      ScaffoldMessenger.of(context,).showSnackBar(const SnackBar(content: Text('Brak trasy do zapisania'))); //przecinek po context??
+      return;
+    }
+//-----------------------------------------DEFINICJA PLIKU
+    final geoJson = {
+      "type": "Feature",
+      "properties": {
+        "created_at": DateTime.now().toIso8601String(),
+        "points_count": routePoints.length,
+        "points": routePoints.map((position){
+          return {
+            "latitude": position.latitude,
+            "longitude": position.longitude,
+            "timestamp": position.timestamp.toIso8601String(),
+            "accuracy": position.accuracy,
+            "altitude": position.altitude,
+            "speed": position.speed,
+          };
+        }).toList()
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": routePoints.map((position) {
+          return [position.longitude, position.latitude];
+        }).toList(),
+      }
+    };
+//-----------------------------------------OKRESLANIE SCIEZKI I NAZWY ZAPISU PLIKU
+    final directory = await getApplicationDocumentsDirectory();
+    final timestamp = DateTime.now().toString()
+    .replaceAll(':', "-")
+    .replaceAll('.', '-');
+
+    final file = File('${directory.path}/trasa_$timestamp.geojson');
+
+    await file.writeAsString(jsonEncode(geoJson));
+
+    if(!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Trasa została zapisana\n$(file.path)')));
+  }
+//-----------------------------------------FUNKCJA EKSPORTOWANIA
 }
