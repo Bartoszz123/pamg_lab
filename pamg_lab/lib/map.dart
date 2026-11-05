@@ -8,17 +8,17 @@ import 'package:latlong2/latlong.dart';
 import 'login.dart';
 
 import 'dart:async';
+
 import 'package:geolocator/geolocator.dart';
 
 import 'dart:io';
 import 'dart:convert';
+
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
-
-
 class MapPage extends StatefulWidget {
-  const MapPage((super.key));
+  const MapPage({super.key});
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -27,11 +27,11 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   bool showOrtofoto = false;
   final MapController mapController = MapController();
-  StreamSubscription<Position> positionStream;
+  StreamSubscription<Position>? positionStream;
   List<Position> routePoints = [];
   bool isMeasuring = false;
 
-  Future<void>startMeasurement() async {
+  Future<void> startMeasurement() async {
     if (isMeasuring) {
       return;
     }
@@ -49,11 +49,14 @@ class _MapPageState extends State<MapPage> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever){
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Brak uprawnień do udostępnienia lokalizacji'))
+        const SnackBar(
+          content: Text('Brak uprawnień do udostępnienia lokalizacji'),
+        ),
       );
-      return:
+      return;
     }
 
     routePoints.clear();
@@ -69,27 +72,29 @@ class _MapPageState extends State<MapPage> {
 
     bool firstPosition = true;
 
-    positionStream = 
-      Geolocator.getPositionStream(locationSettings: locationSettings).listen((Position position) {
-        if (!isMeasuring){
-          return;
-        }
-        setState(() {
-          routePoints.add(position);
-        });
-        if (firstPosition) {
-          mapController.move(
-            LatLng(position.latitude, position.longitude),
-            17);
-            firstPosition = false;
-        }
-        print(
-          'Pozycja: '
-          '${position.latitude}'
-          '${position.longitude}'
-          '${position.timestamp}'
-        );
-      });
+    positionStream =
+        Geolocator.getPositionStream(locationSettings: locationSettings)
+            .listen((Position position) {
+              if (!isMeasuring) {
+                return;
+              }
+              setState(() {
+                routePoints.add(position);
+              });
+              if (firstPosition) {
+                mapController.move(
+                  LatLng(position.latitude, position.longitude),
+                  17,
+                );
+                firstPosition = false;
+              }
+              print(
+                'Pozycja: '
+                '${position.latitude}'
+                '${position.longitude}'
+                '${position.timestamp}',
+              );
+            });
   }
 
   void stopMeasurement() {
@@ -113,18 +118,20 @@ class _MapPageState extends State<MapPage> {
     print('Pomiar i trasa zostały zresetowane');
   }
 
-  Future<void> saveMeasurement() async{
-    if (routePoints.length < 2){
-      ScaffoldMessenger.of(context,).showSnackBar(const SnackBar(content: Text('Brak trasy do zapisania'))); //przecinek po context??
+  Future<void> saveMeasurement() async {
+    if (routePoints.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Brak trasy do zapisania')),
+      ); //przecinek po context??
       return;
     }
-//-----------------------------------------DEFINICJA PLIKU
+    //-----------------------------------------DEFINICJA PLIKU
     final geoJson = {
       "type": "Feature",
       "properties": {
         "created_at": DateTime.now().toIso8601String(),
         "points_count": routePoints.length,
-        "points": routePoints.map((position){
+        "points": routePoints.map((position) {
           return {
             "latitude": position.latitude,
             "longitude": position.longitude,
@@ -133,28 +140,32 @@ class _MapPageState extends State<MapPage> {
             "altitude": position.altitude,
             "speed": position.speed,
           };
-        }).toList()
+        }).toList(),
       },
       "geometry": {
         "type": "LineString",
         "coordinates": routePoints.map((position) {
           return [position.longitude, position.latitude];
         }).toList(),
-      }
+      },
     };
-//-----------------------------------------OKRESLANIE SCIEZKI I NAZWY ZAPISU PLIKU
+    //-----------------------------------------OKRESLANIE SCIEZKI I NAZWY ZAPISU PLIKU
     final directory = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().toString()
-    .replaceAll(':', "-")
-    .replaceAll('.', '-');
+    final timestamp = DateTime.now()
+        .toString()
+        .replaceAll(':', "-")
+        .replaceAll('.', '-');
 
     final file = File('${directory.path}/trasa_$timestamp.geojson');
 
     await file.writeAsString(jsonEncode(geoJson));
 
-    if(!mounted) return;
+    if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Trasa została zapisana\n$(file.path)')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Trasa została zapisana\n${file.path}')),
+    );
   }
-//-----------------------------------------FUNKCJA EKSPORTOWANIA
+  //-----------------------------------------FUNKCJA EKSPORTOWANIA
+  // wywala funkcje na poczatku _MapPageState bo nie majeszcze builda
 }
