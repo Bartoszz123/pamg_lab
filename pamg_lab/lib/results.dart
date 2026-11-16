@@ -1,15 +1,12 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-
 import 'package:path_provider/path_provider.dart';
 
 
 class ResultsPage extends StatefulWidget {
   const ResultsPage({super.key});
+
   @override
   State<ResultsPage> createState() => _ResultsPageState();
 }
@@ -25,17 +22,21 @@ class _ResultsPageState extends State<ResultsPage> {
   }
 
   Future<void> loadRoutes() async {
-    final directory . await getApplicationDocumentsDirectory();
+    final directory = await getApplicationDocumentsDirectory();
     final files = directory
-      .listSync()
-      .whereType<File>
-      .where(
-        (file) ->
-          file.path.endsWith('.geoJson') &&
-          file.path.split(Platform.pathSeparator).last.startsWith('trasa.')
-      ).toList();
+        .listSync()
+        .whereType<File>()
+        .where((file) {
+          final name = file.path.split(Platform.pathSeparator).last;
+          return name.toLowerCase().endsWith('.geojson') &&
+              name.startsWith('trasa.');
+        })
+        .toList();
 
-    files.sort.((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+    files.sort(
+      (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()),
+    );
+
     if (!mounted) return;
 
     setState(() {
@@ -44,12 +45,12 @@ class _ResultsPageState extends State<ResultsPage> {
     });
   }
 
-  Future<void> deleteRoute (File file) async {
+  Future<void> deleteRoute(File file) async {
     await file.delete();
     await loadRoutes();
   }
 
-  String formatDate(DataTime data) {
+  String formatDate(DateTime date) {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
     final year = date.year.toString();
@@ -71,64 +72,63 @@ class _ResultsPageState extends State<ResultsPage> {
           },
         ),
       ),
-
       body: isloading
-        ? const Center(child: CircularProgressIndicator())
-        : routeFiles.isEmpty
-        ? const Center(child: Text('Brak zapisanych tras',
-          style: TextStyle(fontSize: 20)))
-        : ListView.builder(
-          itemCount: routeFiles.length,
-          itemBuilder: (context, index) {
-            final file = routeFiles[index]
-            final fileName = file.path.split(Platform.pathSeperator).last;
-            return ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.route)),
-              title: Text(fileName, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(formatDate(file.lastModifiedSync())),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete)
-                onPressed: () {
-                  showDialog(
-                    context context,
-                    builder (context) {
-                      return AlertDialog(
-                        title: const Text('Usuń trasę'),
-                        content: const Text('Czy na pewno chcesz usunąć trasę?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                            child: const Text('Anuluj'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              await deleteRoute(file);
-                            },
-                            child: const Text('Usuń'),
-                          ),
-                        ],
-                      );
-                    },
+          ? const Center(child: CircularProgressIndicator())
+          : routeFiles.isEmpty
+              ? const Center(
+                  child: Text(
+                    'Brak zapisanych tras',
+                    style: TextStyle(fontSize: 20),
                   ),
-                },
-              );
+                )
+              : ListView.builder(
+                  itemCount: routeFiles.length,
+                  itemBuilder: (context, index) {
+                    final file = routeFiles[index];
+                    final fileName = file.path.split(Platform.pathSeparator).last;
 
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                      RouteDetailsPage(filePath: file.path),
-                  ),
-                );
-              },
-            );
-          )
-        },
-      ),
+                    return ListTile(
+                      leading: const CircleAvatar(child: Icon(Icons.route)),
+                      title: Text(
+                        fileName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(formatDate(file.lastModifiedSync())),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: const Text('Usuń trasę'),
+                                content: const Text(
+                                    'Czy na pewno chcesz usunąć trasę?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text('Anuluj'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () async {
+                                      Navigator.pop(context);
+                                      await deleteRoute(file);
+                                    },
+                                    child: const Text('Usuń'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      onTap: () {
+                      },
+                    );
+                  },
+                ),
     );
   }
 }
