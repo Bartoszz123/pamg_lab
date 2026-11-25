@@ -222,4 +222,121 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
       }
       return '$minutes min $seconds s';
     }
+
+    @override
+    Widget build(BuildContext context) {
+      if (isLoading) {
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
+
+      if (routePoints.length < 2) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Wynik nieprawidłowy')),
+          body: Center(child: Text('Brak wystarczającej ilości danych trasy')),
+        );
+      }
+
+      final center = routePoints.first;
+
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Wyniki trasy'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Zamknij',
+            onPressed: () {
+              Navigator.popUntil(context, (route) => route.isFirst);
+            },
+          ),
+        ),
+// doinstaluj paczkę flutter_map w pubspec.yaml
+        body: Column(
+          children: [
+            Expanded(
+              child: FlutterMap(
+                options: MapOptions(initialCenter: center, initialZoom: 15),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.pamg_lab',
+                    maxZoom: 19,
+                  ),
+                  PolylineLayer(polylines: [Polyline(points: routePoints, strokeWidth: 5)]),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Statysyki mapy',
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 35),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _Statistic(
+                          icon: Icons.route,
+                          title: 'Odległość',
+                          value: '${(distance/1000).toStringAsFixed(2)} km',
+                        ),
+
+                        _Statistic(
+                          icon: Icons.timer,
+                          title: 'Czas',
+                          value: formatDuration(duration),
+                        ),
+
+                        _Statistic(
+                          icon: Icons.speed,
+                          title: 'Średnia prędkość',
+                          value: '${averageSpeed.toStringAsFixed(2)} km/h',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+}
+
+class _Statistic extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  const _Statistic({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 35),
+          const SizedBox(height: 8),
+          Text(title, textAlign: TextAlign.center),
+          const SizedBox(height: 5),
+          Text(
+            value, 
+            textAlign: TextAlign.center, 
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
+            ),
+        ],
+      ),
+    );
+  }
 }

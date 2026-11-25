@@ -1,21 +1,16 @@
-import 'dart:developer';
-
-import 'package:flutter/material.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-
-import 'login.dart';
-
-import 'dart:async';
-
 import 'package:geolocator/geolocator.dart';
-
-import 'dart:io';
-import 'dart:convert';
-
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/material.dart';
+
+import 'login.dart';
+import 'results.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -31,6 +26,12 @@ class _MapPageState extends State<MapPage> {
   List<Position> routePoints = [];
   bool isMeasuring = false;
 
+  @override
+  void dispose() {
+    positionStream?.cancel();
+    super.dispose();
+  }
+
   Future<void> startMeasurement() async {
     if (isMeasuring) {
       return;
@@ -39,6 +40,7 @@ class _MapPageState extends State<MapPage> {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
     if (!serviceEnabled) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lokalizacja telefonu jest wyłączona')),
       );
@@ -51,6 +53,7 @@ class _MapPageState extends State<MapPage> {
     }
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Brak uprawnień do udostępnienia lokalizacji'),
@@ -166,20 +169,30 @@ class _MapPageState extends State<MapPage> {
       SnackBar(content: Text('Trasa została zapisana\n${file.path}')),
     );
   }
+
   //-----------------------------------------FUNKCJA EKSPORTOWANIA
   // wywala funkcje na poczatku _MapPageState bo nie majeszcze builda
   Future<void> exportRoute() async {
     try {
-        final directory = await getApplicationDocumentsDirectory();
-        final files = directory.listSync().whereType<File>().where(
-          (file) =>
-          file.path.endsWith('.geojson') &&
-          file.path.split(Platform.pathSeparator).last.startsWith('trasa_'),
-        ).toList();
+      final directory = await getApplicationDocumentsDirectory();
+      final files = directory
+          .listSync()
+          .whereType<File>()
+          .where(
+            (file) =>
+                file.path.endsWith('.geojson') &&
+                file.path
+                    .split(Platform.pathSeparator)
+                    .last
+                    .startsWith('trasa_'),
+          )
+          .toList();
       if (files.isEmpty) {
-        if(!mounted) return;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Brak zapisanych tras do wyswietlenia lub eksportu')),
+          const SnackBar(
+            content: Text('Brak zapisanych tras do wyswietlenia lub eksportu'),
+          ),
         );
         return;
       }
@@ -190,15 +203,12 @@ class _MapPageState extends State<MapPage> {
           files: files.map((file) => XFile(file.path)).toList(),
         ),
       );
-
     } catch (e) {
-      if(!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Błąd eksportu: $e'))
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Błąd eksportu: $e')));
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -207,13 +217,15 @@ class _MapPageState extends State<MapPage> {
         title: const Text('WalkTracker'),
         actions: [
           IconButton(
-            icon:Icon(showOrtofoto ? Icons.map : Icons.satellite_alt),
-            tooltip: showOrtofoto ? 'Przełącz na OSM' : 'Przełącz na ortofotomapę',
+            icon: Icon(showOrtofoto ? Icons.map : Icons.satellite_alt),
+            tooltip: showOrtofoto
+                ? 'Przełącz na OSM'
+                : 'Przełącz na ortofotomapę',
             onPressed: () {
               setState(() {
                 showOrtofoto = !showOrtofoto;
               });
-            }
+            },
           ),
 
           PopupMenuButton<String>(
@@ -221,8 +233,11 @@ class _MapPageState extends State<MapPage> {
             tooltip: 'Menu',
             onSelected: (value) {
               if (value == 'logout') {
-                Navigator.pushAndRemoveUntil(context,
-                MaterialPageRoute(builder: (context) => const LoginPage()), (route) => false);
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
               }
             },
             itemBuilder: (context) => [
@@ -230,15 +245,15 @@ class _MapPageState extends State<MapPage> {
                 value: 'logout',
                 child: Row(
                   children: [
-                  Icon(Icons.logout),
-                  SizedBox(width: 30),
-                  Text('Wyloguj'),
-                ],
-              ),
+                    Icon(Icons.logout),
+                    SizedBox(width: 30),
+                    Text('Wyloguj'),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(width: 5)
+          const SizedBox(width: 5),
         ],
       ),
       body: Stack(
@@ -254,36 +269,45 @@ class _MapPageState extends State<MapPage> {
             children: [
               if (!showOrtofoto)
                 TileLayer(
-                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                 userAgentPackageName: 'com.example.pamg_lab', //nazwa pliku projektowego
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.pamg_lab',
                   maxZoom: 19,
                 ),
               if (showOrtofoto)
                 TileLayer(
-                wmsOptions: WMSTileLayerOptions(
+                  wmsOptions: WMSTileLayerOptions(
                     baseUrl: 'https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution',
-                    layers: const['Raster'],
-                    format: 'iamge/jpeg',
+                    layers: const ['Raster'],
+                    format: 'image/jpeg',
                     transparent: false,
                     version: '1.3.0',
                   ),
-                  userAgentPackageName: 'com.example.pamg_labs',
+                  userAgentPackageName: 'com.example.pamg_lab',
                 ),
-              
-              PolylineLayer(polylines: [
-                if (routePoints.length >= 2)
-                  Polyline(points: 
-                    routePoints.map((position) => LatLng(position.latitude, position.longitude),
-                    ).toList(),
-                  strokeWidth: 5),
-              ]),
 
-              RichAttributionWidget(attributions: [
-                if (!showOrtofoto)
-                  const TextSourceAttribution('OSM contributes'),
-                if (showOrtofoto)
-                  const TextSourceAttribution('geoportal.gov.pl'),
-              ])
+              PolylineLayer(
+                polylines: [
+                  if (routePoints.length >= 2)
+                    Polyline(
+                      points: routePoints
+                          .map(
+                            (position) =>
+                                LatLng(position.latitude, position.longitude),
+                          )
+                          .toList(),
+                      strokeWidth: 5,
+                    ),
+                ],
+              ),
+
+              RichAttributionWidget(
+                attributions: [
+                  if (!showOrtofoto)
+                    const TextSourceAttribution('OSM contributes'),
+                  if (showOrtofoto)
+                    const TextSourceAttribution('geoportal.gov.pl'),
+                ],
+              ),
             ],
           ),
           Positioned(
@@ -323,48 +347,48 @@ class _MapPageState extends State<MapPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-
-            IconButton( 
+            IconButton(
               icon: const Icon(Icons.play_arrow),
               tooltip: 'Rozpocznij pomiar',
               onPressed: startMeasurement,
             ),
-            IconButton( 
+            IconButton(
               icon: const Icon(Icons.stop),
               tooltip: 'Zakończ pomiar',
               onPressed: stopMeasurement,
             ),
-            IconButton( 
+            IconButton(
               icon: const Icon(Icons.save),
               tooltip: 'Zapisz pomiar',
               onPressed: saveMeasurement,
             ),
-            IconButton( 
+            IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: 'Resetuj pomiar',
               onPressed: resetMeasurement,
             ),
-            IconButton( 
+            IconButton(
               icon: const Icon(Icons.analytics),
               tooltip: 'Wyniki',
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Strona w tworzeniu')
-                  )
+                // ScaffoldMessenger.of(context).showSnackBar(
+                //   const SnackBar(
+                //     content: Text('Strona w tworzeniu')
+                //   )
+                // );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ResultsPage()),
                 );
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(builder: (context) => const ResultsPage())), dodac po zrobieniu strony 
-              IconButton(
-                icon: const Icon(Icons.file_download),
-                tooltip: 'Eksportuj',
-                onPressed: exportRoute,
-              );
-              }
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.file_download),
+              tooltip: 'Eksportuj',
+              onPressed: exportRoute, 
             ),
           ],
-        )
+        ),
       ),
     );
   }
