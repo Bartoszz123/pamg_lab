@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
 
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:latlong2/latlong.dart';
@@ -155,13 +157,13 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
 
     }
 
-    Future<voice> loadRoute() async {
-      try (
-        final file = File(widget.filePath)
+    Future<void> loadRoute() async {
+      try {
+        final file = File(widget.filePath);
         final content = await file.readAsString();
         final geoJson = jsonDecode(content);
 
-        final pointsData = geoJson['properties']['points'] as list;
+        final pointsData = geoJson['properties']['points'] as List;
 
         routePoints = pointsData
           .map(
@@ -182,13 +184,13 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
         }
 
         final timestamps = pointsData
-          .map((point) => points['timestamp'])
+          .map((point) => point['timestamp'])
           .where((timestamp) => timestamp != null)
           .map((timestamp) => DateTime.parse(timestamp.toString()))
           .toList();
         
         if(timestamps.length >= 2) {
-          final startTime = timeStamps.first;
+          final startTime = timestamps.first;
           final endTime = timestamps.last;
           duration = endTime.difference(startTime);
         }
@@ -203,7 +205,7 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
         setState(() {
           isLoading = false;
         });
-      ); catch (e) {
+      } catch (e) {
           print('Błąd wczytywania strony: $e');
           if (!mounted) return;
           setState(() {
@@ -249,7 +251,7 @@ class _RouteDetailsPageState extends State<RouteDetailsPage> {
             },
           ),
         ),
-// doinstaluj paczkę flutter_map w pubspec.yaml
+
         body: Column(
           children: [
             Expanded(
